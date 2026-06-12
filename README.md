@@ -1,2 +1,2 @@
 # internship-Scraper
-searches the internet for available 
+searches the internet for available internships
