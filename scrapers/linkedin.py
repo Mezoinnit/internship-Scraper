@@ -2,7 +2,7 @@ import asyncio
 import re
 import random
 
-from config import SCRAPER_CONFIG, Internship
+from utils.config import Internship
 from .base import BaseScraper
 
 
@@ -27,14 +27,15 @@ class LinkedInScraper(BaseScraper):
         return True
 
     async def scrape(self) -> list[Internship]:
-        cfg = SCRAPER_CONFIG["linkedin"]
+        cfg = self.config.scrapers["linkedin"]
         locations_param = cfg["location"]
         days = cfg["days_posted"]
         exp = ",".join(str(e) for e in cfg["experience_level"])
         sort = cfg["sort_by"]
 
         jobs = []
-        all_kw = set(cfg["keywords"] + cfg["industry_keywords"])
+        # dict.fromkeys dedupes while preserving order (deterministic across runs).
+        all_kw = list(dict.fromkeys(cfg["keywords"] + cfg["industry_keywords"]))
         for kw in all_kw:
             params = {
                 "keywords": kw, "location": locations_param,
@@ -55,20 +56,35 @@ class LinkedInScraper(BaseScraper):
         return t
 
     def _try_parse_v1(self, html: str) -> list[dict] | None:
-        hrefs = re.findall(r'base-card__full-link[^>]*href="([^"]+)"', html)
-        if not hrefs:
-            return None
-        raw_titles = re.findall(
-            r'sr-only[^>]*>\s*(.*?)\s*</span>', html, re.DOTALL
-        )
-        companies = re.findall(
-            r'base-search-card__subtitle[^>]*>\s*<a[^>]*>(.*?)</a>', html, re.DOTALL
-        )
-        locations = re.findall(
-            r'job-search-card__location[^>]*>(.*?)</span>', html, re.DOTALL
-        )
-        titles = [self._clean_title(t) for t in raw_titles]
-        return [dict(hrefs=hrefs, titles=titles, companies=companies, locations=locations)]
+        # Parse each job card as a self-contained block so href, title, company,
+        # and location are read from the SAME card — never paired by global index
+        # (which misaligns because sr-only spans appear all over the page).
+        blocks = re.split(r'<li[^>]*>', html)
+        results = []
+        for block in blocks:
+            m_href = re.search(r'base-card__full-link[^>]*href="([^"]+)"', block)
+            if not m_href:
+                continue
+            href = m_href.group(1)
+
+            m_title = re.search(r'sr-only[^>]*>\s*(.*?)\s*</span>', block, re.DOTALL)
+            if not m_title:
+                m_title = re.search(r'base-search-card__title[^>]*>\s*(.*?)\s*</', block, re.DOTALL)
+            title = self._clean_title(m_title.group(1)) if m_title else ""
+
+            m_company = re.search(
+                r'base-search-card__subtitle[^>]*>\s*<a[^>]*>(.*?)</a>', block, re.DOTALL)
+            company = ""
+            if m_company:
+                company = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', m_company.group(1))).strip()
+
+            m_loc = re.search(r'job-search-card__location[^>]*>(.*?)</span>', block, re.DOTALL)
+            location = ""
+            if m_loc:
+                location = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', m_loc.group(1))).strip()
+
+            results.append(dict(href=href, title=title, company=company, location=location))
+        return results if results else None
 
     def _try_parse_v2(self, html: str) -> list[dict] | None:
         blocks = re.findall(
@@ -99,6 +115,12 @@ class LinkedInScraper(BaseScraper):
             return result if result else None
         return None
 
+    def _title_from_href(self, href: str) -> str:
+        """Derive a human-readable title from the job-view URL slug."""
+        slug = href.split("/")[-1].split("?")[0]
+        slug = re.sub(r'-\d+$', '', slug)
+        return slug.replace("-", " ").title()
+
     async def _fetch_jobs(self, url: str) -> list[Internship]:
         html = await self.safe_fetch(url, timeout=45)
         if not html:
@@ -109,87 +131,35 @@ class LinkedInScraper(BaseScraper):
             parsed = self._try_parse_v2(html)
         if parsed is None:
             parsed = self._try_parse_v3(html)
-
         if parsed is None:
+            # Last resort: collect job-view links; the title comes from the URL
+            # slug per-link (never paired by global index — that misaligns).
             hrefs = re.findall(r'href="(https?://[^"]*linkedin[^"]*/jobs/view/[^"]+)"', html)
-            titles = re.findall(r'<h3[^>]*class="[^"]*"[^>]*>(.*?)</h3>', html, re.DOTALL)
-            if hrefs:
-                parsed = [dict(hrefs=hrefs, titles=[self._clean_title(t) for t in titles],
-                               companies=[], locations=[])]
-
+            parsed = [dict(href=h) for h in hrefs] if hrefs else None
         if parsed is None:
             return []
 
-        seen_ids = set()
-        results = []
+        default_location = self.config.scrapers["linkedin"]["location"]
+        seen_ids: set[str] = set()
+        results: list[Internship] = []
+        for entry in parsed:
+            href = entry.get("href", "")
+            jid_match = re.search(r'(\d+)(?:\?|$)', href.split("-")[-1] if "-" in href else href)
+            if not jid_match:
+                continue
+            jid = jid_match.group(1)
+            if jid in seen_ids:
+                continue
+            seen_ids.add(jid)
 
-        data = parsed[0] if isinstance(parsed[0], dict) and "hrefs" in parsed[0] else None
+            title = entry.get("title", "")
+            if not self._is_valid_title(title):
+                title = self._title_from_href(href)
 
-        if data:
-            hrefs = data.get("hrefs", [])
-            titles = data.get("titles", [])
-            companies = data.get("companies", [])
-            locations = data.get("locations", [])
-            for i, href in enumerate(hrefs):
-                jid_match = re.search(r'(\d+)(?:\?|$)', href.split("-")[-1] if "-" in href else href)
-                if not jid_match:
-                    continue
-                jid = jid_match.group(1)
-                if jid in seen_ids:
-                    continue
-                seen_ids.add(jid)
-
-                title = ""
-                if i < len(titles) and self._is_valid_title(titles[i]):
-                    title = titles[i]
-
-                if not title:
-                    url_title = href.split("/")[-1].split("?")[0]
-                    url_title = re.sub(r'-\d+$', '', url_title)
-                    url_title = url_title.replace("-", " ").title()
-                    if url_title:
-                        title = url_title
-
-                company = ""
-                if i < len(companies):
-                    company = re.sub(r'<[^>]+>', '', companies[i]).strip()
-                    company = re.sub(r'\s+', ' ', company)
-
-                location = SCRAPER_CONFIG["linkedin"]["location"]
-                if i < len(locations):
-                    location = re.sub(r'<[^>]+>', '', locations[i]).strip()
-                    location = re.sub(r'\s+', ' ', location)
-
-                clean_href = href.split("?")[0]
-                results.append(Internship(
-                    title=title, company=company, location=location,
-                    url=clean_href, source=self.SOURCE,
-                ))
-        else:
-            for entry in parsed:
-                href = entry.get("href", "")
-                jid_match = re.search(r'(\d+)(?:\?|$)', href.split("-")[-1] if "-" in href else href)
-                if not jid_match:
-                    continue
-                jid = jid_match.group(1)
-                if jid in seen_ids:
-                    continue
-                seen_ids.add(jid)
-
-                title = entry.get("title", "")
-                if not title:
-                    url_title = href.split("/")[-1].split("?")[0]
-                    url_title = re.sub(r'-\d+$', '', url_title)
-                    url_title = url_title.replace("-", " ").title()
-                    if url_title:
-                        title = url_title
-
-                company = entry.get("company", "")
-                clean_href = href.split("?")[0]
-                results.append(Internship(
-                    title=title, company=company,
-                    location=SCRAPER_CONFIG["linkedin"]["location"],
-                    url=clean_href, source=self.SOURCE,
-                ))
-
+            company = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', entry.get("company", ""))).strip()
+            location = entry.get("location") or default_location
+            results.append(Internship(
+                title=title, company=company, location=location,
+                url=href.split("?")[0], source=self.SOURCE,
+            ))
         return results

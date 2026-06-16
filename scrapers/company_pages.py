@@ -1,7 +1,8 @@
 import asyncio
+import re
 from urllib.parse import quote_plus
 
-from config import SCRAPER_CONFIG, Internship
+from utils.config import Internship
 from .base import BaseScraper
 
 
@@ -9,11 +10,11 @@ class CompanyPagesScraper(BaseScraper):
     SOURCE = "company"
 
     async def scrape(self) -> list[Internship]:
-        cfg = SCRAPER_CONFIG["company_pages"]
+        cfg = self.config.scrapers["company_pages"]
         templates = cfg["query_templates"]
-        targets = [("company", c) for c in cfg["companies"]] + [("university", u) for u in cfg["universities"]]
+        targets = cfg["companies"] + cfg["universities"]
 
-        async def search_target(name):
+        async def search_target(name: str) -> list[Internship]:
             queries = [t.format(name=name) for t in templates]
             jobs = []
             for q in queries:
@@ -24,35 +25,37 @@ class CompanyPagesScraper(BaseScraper):
                 jobs.extend(self._parse(html, name))
             return jobs
 
-        tasks = [search_target(name) for kind, name in targets]
+        tasks = [search_target(name) for name in targets]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        jobs = []
+        jobs: list[Internship] = []
         for r in results:
             if isinstance(r, list):
                 jobs.extend(r)
         return jobs
 
+    SKIP_DOMAINS = ("linkedin.com/jobs", "wuzzuf", "indeed", "glassdoor")
+
     def _parse(self, html: str, name: str) -> list[Internship]:
-        import re
-        jobs = []
-        cites = set()
+        jobs: list[Internship] = []
+        seen_urls: set[str] = set()
         for m in re.finditer(r'<cite[^>]*>(.*?)</cite>', html, re.DOTALL):
-            cite_raw = m.group(1)
-            cite_text = re.sub(r'<[^>]+>', '', cite_raw).strip()
-            cite_text = cite_text.replace(" › ", "/").replace(" ", "")
-            url = ("https://" + cite_text) if not cite_text.startswith("http") else cite_text
-            if any(x in url for x in ("linkedin.com/jobs", "wuzzuf", "indeed", "glassdoor")):
-                continue
-            if url in cites:
-                continue
-            cites.add(url)
-            title = name
-            tm = re.search(
-                r'<a[^>]*href="https?://(?!www\.bing\.com)[^"]*"[^>]*>(.*?)</a>',
-                html[html.find(cite_raw) - 200:html.find(cite_raw) + 50], re.DOTALL
+            # The result anchor precedes its <cite>; read the real href + title
+            # from it rather than reconstructing a lossy URL from the cite text.
+            window_start = max(m.start() - 200, 0)
+            anchor = re.search(
+                r'<a[^>]*href="(https?://(?!www\.bing\.com)[^"]*)"[^>]*>(.*?)</a>',
+                html[window_start:m.start() + 50], re.DOTALL
             )
-            if tm:
-                title = re.sub(r'<[^>]+>', '', tm.group(1)).strip()
+            if not anchor:
+                continue
+            url = anchor.group(1)
+            if any(domain in url for domain in self.SKIP_DOMAINS):
+                continue
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+
+            title = re.sub(r'<[^>]+>', '', anchor.group(2)).strip() or name
             jobs.append(Internship(
                 title=f"{title} — {name}", company=name,
                 location="Egypt", url=url, source=self.SOURCE,

@@ -1,8 +1,8 @@
 import asyncio
 import random
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote_plus
 
-from config import SCRAPER_CONFIG, Internship
+from utils.config import Internship
 from .base import BaseScraper, _pw_lock
 
 try:
@@ -19,11 +19,19 @@ class IndeedScraper(BaseScraper):
     async def scrape(self) -> list[Internship]:
         if not PLAYWRIGHT_AVAILABLE:
             return []
-        cfg = SCRAPER_CONFIG["indeed"]
-        kw = cfg["keywords"][0]
+        cfg = self.config.scrapers["indeed"]
         loc = cfg["location"]
-        url = f"{self.BASE_URL}?q={kw}&l={loc}"
-        return await self._scrape_page(url)
+        all_jobs: list[Internship] = []
+        seen_urls: set[str] = set()
+        for kw in cfg["keywords"]:
+            query = f"{kw} intern"
+            url = f"{self.BASE_URL}?q={quote_plus(query)}&l={quote_plus(loc)}"
+            jobs = await self._scrape_page(url)
+            for job in jobs:
+                if job.url not in seen_urls:
+                    seen_urls.add(job.url)
+                    all_jobs.append(job)
+        return all_jobs
 
     async def _scrape_page(self, url: str) -> list[Internship]:
         async with _pw_lock:
@@ -47,23 +55,28 @@ class IndeedScraper(BaseScraper):
                                 if (!title || !href || seen.has(href)) continue;
                                 seen.add(href);
                                 const card = link.closest('div[class*="card"], li, section, [data-testid]');
-                                let company = '', location = 'Egypt';
+                                let company = '', location = 'Egypt', datePosted = '';
                                 if (card) {
                                     const ce = card.querySelector('[data-testid="company-name"], .companyName');
                                     if (ce) company = ce.innerText.trim();
                                     const le = card.querySelector('[data-testid="text-location"], .companyLocation');
                                     if (le) location = le.innerText.trim();
+                                    const de = card.querySelector('[data-testid="myJobsStateDate"], .date');
+                                    if (de) datePosted = de.innerText.trim();
                                 }
-                                results.push({ title, href, company, location });
+                                results.push({ title, href, company, location, datePosted });
                             }
                             return results;
                         }""")
                         await browser.close()
                         return [
-                            Internship(title=d["title"], company=d["company"],
+                            Internship(
+                                title=d["title"], company=d["company"],
                                 location=d["location"] or "Egypt",
                                 url=urljoin("https://eg.indeed.com", d["href"]),
-                                source=self.SOURCE)
+                                source=self.SOURCE,
+                                date_posted=d.get("datePosted", ""),
+                            )
                             for d in data
                         ]
                 except Exception:
