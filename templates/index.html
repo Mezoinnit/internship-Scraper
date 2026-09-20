@@ -4,63 +4,122 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Internship Scraper UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#09090b;
+  --surface:#18181b;
+  --surface-raised:#1d1d20;
+  --surface-inset:#111113;
+  --border:rgba(255,255,255,0.07);
+  --border-active:rgba(255,255,255,0.16);
+  --text:#fafafa;
+  --text-2:#a1a1aa;
+  --text-3:#52525b;
+  --green:#34d399;
+  --red:#f87171;
+  --tr:0.2s ease;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:#000;color:#fff;-webkit-font-smoothing:antialiased}
-.wrap{max-width:680px;margin:0 auto;padding:48px 24px}
+body{margin:0;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding:48px 24px;animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;gap:12px}
 .hdr-l h1{font-size:1.25rem;font-weight:700;letter-spacing:-.01em;margin:0}
-.hdr-l .by{color:#444;font-size:.82rem;margin-top:2px}
-.hdr-l .by a{color:#666;text-decoration:none}
-.hdr-l .by a:hover{color:#fff}
+.hdr-l .by{color:var(--text-3);font-size:.82rem;margin-top:2px}
+.hdr-l .by a{color:var(--text-2);text-decoration:none;transition:color var(--tr)}
+.hdr-l .by a:hover{color:var(--text)}
 .hdr-r{display:flex;gap:6px;flex-shrink:0}
-.btns{display:flex;gap:6px}
-.btns button,.hdr-r button{padding:6px 12px;border:1px solid #222;border-radius:6px;background:transparent;color:#555;font-size:.78rem;cursor:pointer;transition:.15s;white-space:nowrap}
-.btns button:hover,.hdr-r button:hover{color:#ccc;border-color:#444}
+.btn-ghost{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-3);font-size:.78rem;cursor:pointer;transition:all var(--tr);white-space:nowrap}
+.btn-ghost:hover{color:var(--text-2);border-color:var(--border-active)}
 .sec{margin-bottom:24px}
-.lbl{font-size:.72rem;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.inp{width:100%;padding:10px 14px;font-size:.88rem;background:#111;color:#fff;border:1px solid #222;border-radius:8px;outline:none;transition:.15s}
-.inp:focus{border-color:#555}
-.inp::placeholder{color:#333}
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;min-height:28px}
-.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#111;border:1px solid #222;border-radius:6px;font-size:.8rem;color:#ccc}
-.tag .rm{cursor:pointer;color:#555;font-size:1rem;line-height:1}
-.tag .rm:hover{color:#fff}
+.lbl{font-size:.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.inp{width:100%;padding:10px 14px;font-size:.88rem;background:var(--surface-inset);color:var(--text);border:1px solid var(--border);border-radius:8px;outline:none;transition:all var(--tr)}
+.inp:focus{border-color:var(--border-active)}
+.inp::placeholder{color:var(--text-3)}
 .gr2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* Sources — pill toggles */
 .srcs{display:flex;gap:6px;flex-wrap:wrap}
-.src{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #222;border-radius:8px;background:transparent;cursor:pointer;font-size:.82rem;color:#555;transition:.15s;user-select:none}
-.src:hover{border-color:#444;color:#aaa}
-.src.on{color:#fff;border-color:#555;background:#111}
-.src .ck{display:inline-block;width:14px;height:14px;border:1.5px solid #333;border-radius:4px;transition:.15s}
-.src.on .ck{background:#fff;border-color:#fff}
+.src{display:inline-flex;align-items:center;padding:7px 14px;border:1px solid var(--border);border-radius:100px;background:transparent;cursor:pointer;font-size:.82rem;color:var(--text-3);transition:all var(--tr);user-select:none}
+.src:hover{border-color:var(--border-active);color:var(--text-2)}
+.src.on{color:var(--text);border-color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(255,255,255,0.04)}
+/* Options */
 .opt{display:flex;gap:12px;flex-wrap:wrap}
 .opt .inp{width:auto;flex:1;min-width:100px}
-.btn-p{display:block;width:100%;padding:12px 24px;font-size:.9rem;font-weight:600;background:#fff;color:#000;border:none;border-radius:10px;cursor:pointer;transition:.15s;margin-top:4px}
-.btn-p:hover{opacity:.85}
-.btn-p:disabled{opacity:.3;cursor:not-allowed}
-.btn-p .sp{display:none;width:16px;height:16px;border:2px solid #000;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin:0 auto}
+select.inp{-webkit-appearance:none;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2352525b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+/* Primary action button */
+.btn-p{display:block;width:100%;padding:12px 24px;font-size:.9rem;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:10px;cursor:pointer;transition:all var(--tr);margin-top:4px}
+.btn-p:hover{opacity:.88;transform:scale(1.005)}
+.btn-p:disabled{opacity:.25;cursor:not-allowed;transform:none}
+.btn-p .sp{display:none;width:16px;height:16px;border:2px solid rgba(0,0,0,0.4);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin:0 auto}
 .btn-p.loading .sp{display:block}
 .btn-p.loading .tx{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-.log{display:none;margin-top:20px;background:#0a0a0a;border:1px solid #141414;border-radius:10px;padding:16px;max-height:320px;overflow-y:auto}
+/* Console log */
+.log{display:none;margin-top:20px;background:var(--surface-inset);border:1px solid var(--border);border-radius:10px;padding:16px;max-height:320px;overflow-y:auto;font-family:'DM Mono','JetBrains Mono','Fira Code','Courier New',monospace;animation:fadeUp .2s ease both}
 .log.show{display:block}
 .log::-webkit-scrollbar{width:4px}
-.log::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
-.ent{font-size:.82rem;color:#666;padding:3px 0;line-height:1.5}
-.ent b{color:#ccc;font-weight:500}
-.ent.ok{color:#4ade80}
-.ent.err{color:#f87171}
-.ent.sk{color:#555;font-style:italic}
-.rs{display:none;margin-top:24px;padding:20px;border:1px solid #1a1a1a;border-radius:10px}
+.log::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+.ent{font-size:.79rem;color:var(--text-3);padding:2px 0;line-height:1.65}
+.ent b{color:var(--text-2);font-weight:500}
+.ent.ok{color:var(--green)}
+.ent.err{color:var(--red)}
+.ent.sk{color:var(--text-3);font-style:italic}
+/* Results summary card */
+.rs{display:none;margin-top:24px;padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .rs.show{display:block}
-.rs .tt{font-size:.85rem;color:#666;margin-bottom:12px}
-.rs .tt b{color:#fff;font-weight:600}
+.rs .tt{font-size:.85rem;color:var(--text-2);margin-bottom:16px}
+.rs .tt b{color:var(--text);font-weight:600}
 .rs .ls{display:flex;gap:10px;flex-wrap:wrap}
-.rs .ls a{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:1px solid #222;border-radius:8px;color:#fff;text-decoration:none;font-size:.85rem;font-weight:500;transition:.15s}
-.rs .ls a:hover{background:#111;border-color:#444}
-.ftr{margin-top:48px;padding-top:20px;border-top:1px solid #141414;text-align:center;font-size:.8rem;color:#444}
-.ftr a{color:#888;text-decoration:none}
-.ftr a:hover{color:#fff}
+.rs .ls a{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:.85rem;font-weight:500;text-decoration:none;transition:all var(--tr)}
+.rs .ls a.btn-primary{background:var(--text);color:var(--bg);border:1px solid transparent}
+.rs .ls a.btn-primary:hover{opacity:.88;transform:scale(1.02)}
+.rs .ls a.btn-outline{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.rs .ls a.btn-outline:hover{border-color:var(--border-active);color:var(--text);background:rgba(255,255,255,0.04);transform:scale(1.02)}
+/* Footer */
+.ftr{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);text-align:center;font-size:.8rem;color:var(--text-3)}
+.ftr a{color:var(--text-2);text-decoration:none;transition:color var(--tr)}
+.ftr a:hover{color:var(--text)}
+
+/* Multi-select component */
+.ms{position:relative}
+.ms-trigger{width:100%;padding:10px 14px;font-size:.88rem;background:var(--surface-inset);color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:all var(--tr);user-select:none}
+.ms-trigger:hover{border-color:var(--border-active)}
+.ms-trigger.open{border-color:var(--border-active)}
+.ms-trigger-text{color:var(--text-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-trigger-text.has-sel{color:var(--text-2)}
+.ms-arrow{font-size:.6rem;color:var(--text-3);flex-shrink:0;transition:transform var(--tr)}
+.ms-trigger.open .ms-arrow{transform:rotate(180deg)}
+.ms-drop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface-raised);border:1px solid var(--border-active);border-radius:10px;z-index:100;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.7),0 2px 8px rgba(0,0,0,0.4)}
+.ms-drop.show{display:block}
+.ms-search{width:100%;padding:10px 14px;font-size:.82rem;background:transparent;color:var(--text);border:none;border-bottom:1px solid var(--border);outline:none}
+.ms-search::placeholder{color:var(--text-3)}
+.ms-list{max-height:220px;overflow-y:auto}
+.ms-list::-webkit-scrollbar{width:4px}
+.ms-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+.ms-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:.84rem;color:var(--text-2);transition:all var(--tr)}
+.ms-item:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.ms-item.checked{color:var(--text)}
+.ms-item.blocked{opacity:.28;cursor:not-allowed}
+.ms-item.blocked:hover{background:transparent;color:var(--text-2)}
+.ms-item-box{width:15px;height:15px;border:1.5px solid var(--text-3);border-radius:4px;flex-shrink:0;transition:all var(--tr);display:flex;align-items:center;justify-content:center}
+.ms-item.checked .ms-item-box{background:var(--text);border-color:var(--text)}
+.ms-item-check{display:none;width:8px;height:8px;background:var(--bg);clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0%,43% 62%)}
+.ms-item.checked .ms-item-check{display:block}
+.ms-empty{padding:16px;font-size:.82rem;color:var(--text-3);text-align:center}
+.ms-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;min-height:4px}
+.ms-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:100px;font-size:.79rem;color:var(--text-2);transition:all var(--tr)}
+.ms-tag:hover{border-color:var(--border-active)}
+.ms-tag-rm{cursor:pointer;color:var(--text-3);font-size:.85rem;line-height:1;padding:0 2px;transition:color var(--tr)}
+.ms-tag-rm:hover{color:var(--text)}
+
+.btn-ghost:focus-visible{outline:2px solid var(--border-active);outline-offset:2px}
+.btn-p:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.ms-trigger:focus-visible{outline:2px solid var(--border-active);outline-offset:2px}
+.inp:focus-visible{outline:none}
+
 @media(max-width:550px){
 .wrap{padding:32px 16px}
 .hdr{flex-direction:column;margin-bottom:28px}
@@ -77,34 +136,32 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sa
 <div class="by"><a href="https://mezoinnit.github.io" target="_blank" rel="noopener">Moataz Ahmed</a></div>
 </div>
 <div class="hdr-r">
-<button onclick="ld()">Load Defaults</button>
+<button class="btn-ghost" onclick="ld()">Load Defaults</button>
 </div>
 </div>
 
 <div class="sec">
 <div class="lbl">Keywords</div>
-<input class="inp" id="kwInp" placeholder="Type and press Enter" autocomplete="off">
-<div class="tags" id="kwTags"></div>
+<div id="kwSec" class="ms"></div>
 </div>
 
 <div class="sec">
 <div class="lbl">Filters</div>
 <div class="gr2">
 <div>
-<input class="inp" id="exInp" placeholder="Exclude titles" autocomplete="off">
-<div class="tags" id="exTags"></div>
+<div class="lbl" style="font-size:.66rem;margin-bottom:4px">Exclude titles</div>
+<div id="exSec" class="ms"></div>
 </div>
 <div>
-<input class="inp" id="inInp" placeholder="Include titles" autocomplete="off">
-<div class="tags" id="inTags"></div>
+<div class="lbl" style="font-size:.66rem;margin-bottom:4px">Include titles</div>
+<div id="inSec" class="ms"></div>
 </div>
 </div>
 </div>
 
 <div class="sec">
 <div class="lbl">Target Cities</div>
-<input class="inp" id="ciInp" placeholder="Type a city and press Enter" autocomplete="off">
-<div class="tags" id="ciTags"></div>
+<div id="ciSec" class="ms"></div>
 </div>
 
 <div class="sec">
@@ -122,12 +179,6 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sa
 <option value="14">14 days</option>
 <option value="30">30 days</option>
 </select>
-<select class="inp" id="expSel">
-<option value="">Any level</option>
-<option value="1">Internship</option>
-<option value="2">Entry level</option>
-<option value="3">Associate</option>
-</select>
 </div>
 </div>
 
@@ -144,7 +195,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sa
 
 <div class="ftr">
 Built by <a href="https://mezoinnit.github.io" target="_blank" rel="noopener">Moataz Ahmed</a>
-&middot; <a href="https://github.com/Mezoinnit/internship-Scraper" target="_blank" rel="noopener">GitHub</a>
+&middot; <a href="https://github.com/Mezoinnit/internship-Scraper" target="_blank" rel="noopener">Source code</a>
 &middot; &copy; 2026 All rights reserved
 </div>
 </div>
@@ -152,170 +203,323 @@ Built by <a href="https://mezoinnit.github.io" target="_blank" rel="noopener">Mo
 <script>
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-function tagStore(key){return JSON.parse(localStorage.getItem(key)||'[]')}
-function tagSave(key,val){localStorage.setItem(key,JSON.stringify(val))}
-function tagRender(key,elId){
-var arr=tagStore(key)
-document.getElementById(elId).innerHTML=arr.map(function(v){return '<span class="tag">'+esc(v)+'<span class="rm" onclick="tagRm(\''+key+'\',\''+esc(v)+'\',\''+elId+'\')">&times;</span></span>'}).join('')
-}
-function tagAdd(key,val,elId){
-var arr=tagStore(key)
-if(val&&arr.indexOf(val)===-1){arr.push(val);tagSave(key,arr);tagRender(key,elId)}
-}
-function tagRm(key,val,elId){
-var arr=tagStore(key).filter(function(x){return x!==val})
-tagSave(key,arr)
-tagRender(key,elId)
-}
-function tagSetup(inpId,key,elId){
-var inp=document.getElementById(inpId)
-inp.addEventListener('keydown',function(e){
-if(e.key===','||e.key==='Enter'){
-e.preventDefault()
-var v=this.value.trim().replace(/,+$/,'').trim()
-tagAdd(key,v,elId)
-this.value=''
-}
-})
-inp.addEventListener('blur',function(){
-var v=this.value.trim()
-tagAdd(key,v,elId)
-this.value=''
-})
+/* ── MultiSelect ─────────────────────────────────────────── */
+class MultiSelect {
+  constructor(container, options, placeholder) {
+    this.container = container
+    this.options = options
+    this.placeholder = placeholder || 'Select…'
+    this.selected = new Set()
+    this.blocked = new Set()
+    this.onChange = null
+    this._filtered = options
+    this._build()
+  }
+
+  _build() {
+    this.container.innerHTML = ''
+
+    this.trigger = document.createElement('div')
+    this.trigger.className = 'ms-trigger'
+    this.trigger.innerHTML = '<span class="ms-trigger-text">'+esc(this.placeholder)+'</span><span class="ms-arrow">&#9660;</span>'
+    this.trigger.addEventListener('click', e => { e.stopPropagation(); this._toggle() })
+    this.container.appendChild(this.trigger)
+
+    this.drop = document.createElement('div')
+    this.drop.className = 'ms-drop'
+
+    this.search = document.createElement('input')
+    this.search.className = 'ms-search'
+    this.search.placeholder = 'Search…'
+    this.search.addEventListener('input', () => this._filter(this.search.value))
+    this.search.addEventListener('click', e => e.stopPropagation())
+    this.drop.appendChild(this.search)
+
+    this.list = document.createElement('div')
+    this.list.className = 'ms-list'
+    this.drop.appendChild(this.list)
+
+    this.container.appendChild(this.drop)
+
+    this.tagsEl = document.createElement('div')
+    this.tagsEl.className = 'ms-tags'
+    this.container.appendChild(this.tagsEl)
+
+    this._renderList()
+    this._renderTrigger()
+
+    document.addEventListener('click', e => {
+      if (!this.container.contains(e.target)) this._close()
+    })
+  }
+
+  _toggle() {
+    if (this.drop.classList.contains('show')) {
+      this._close()
+    } else {
+      this.search.value = ''
+      this._filter('')
+      this.drop.classList.add('show')
+      this.trigger.classList.add('open')
+      this.search.focus()
+    }
+  }
+
+  _close() {
+    this.drop.classList.remove('show')
+    this.trigger.classList.remove('open')
+  }
+
+  _filter(q) {
+    const lq = q.toLowerCase()
+    this._filtered = q
+      ? this.options.filter(o => o.en.toLowerCase().includes(lq) || (o.ar && o.ar.includes(q)))
+      : this.options
+    this._renderList()
+  }
+
+  _renderList() {
+    if (this._filtered.length === 0) {
+      this.list.innerHTML = '<div class="ms-empty">No matches</div>'
+      return
+    }
+    this.list.innerHTML = this._filtered.map(o => {
+      const on = this.selected.has(o.en)
+      const bl = this.blocked.has(o.en)
+      const cls = 'ms-item' + (on ? ' checked' : '') + (bl ? ' blocked' : '')
+      return '<div class="'+cls+'" data-en="'+esc(o.en)+'">'
+        +'<div class="ms-item-box"><div class="ms-item-check"></div></div>'
+        +'<span>'+esc(o.en)+'</span>'
+        +'</div>'
+    }).join('')
+    this.list.querySelectorAll('.ms-item').forEach(el => {
+      el.addEventListener('click', () => this._toggle_item(el.dataset.en))
+    })
+  }
+
+  _toggle_item(en) {
+    if (this.blocked.has(en)) return
+    if (this.selected.has(en)) {
+      this.selected.delete(en)
+    } else {
+      this.selected.add(en)
+    }
+    this._renderList()
+    this._renderTrigger()
+    this._renderTags()
+    if (this.onChange) this.onChange(this.getSelected())
+  }
+
+  setBlocked(enSet) {
+    this.blocked = new Set(enSet)
+    for (const en of this.blocked) {
+      if (this.selected.has(en)) this.selected.delete(en)
+    }
+    this._filter(this.search ? this.search.value : '')
+    this._renderTrigger()
+    this._renderTags()
+  }
+
+  _renderTrigger() {
+    const txt = this.trigger.querySelector('.ms-trigger-text')
+    if (this.selected.size === 0) {
+      txt.textContent = this.placeholder
+      txt.classList.remove('has-sel')
+    } else {
+      txt.textContent = this.selected.size + ' selected'
+      txt.classList.add('has-sel')
+    }
+  }
+
+  _renderTags() {
+    this.tagsEl.innerHTML = Array.from(this.selected).map(en =>
+      '<span class="ms-tag">'+esc(en)
+      +'<span class="ms-tag-rm" data-en="'+esc(en)+'">&times;</span>'
+      +'</span>'
+    ).join('')
+    this.tagsEl.querySelectorAll('.ms-tag-rm').forEach(el => {
+      el.addEventListener('click', () => this._toggle_item(el.dataset.en))
+    })
+  }
+
+  setSelected(enValues) {
+    this.selected = new Set((enValues || []).filter(en => !this.blocked.has(en)))
+    this._filter(this.search ? this.search.value : '')
+    this._renderTrigger()
+    this._renderTags()
+  }
+
+  getSelected() {
+    return Array.from(this.selected)
+  }
 }
 
-tagSetup('kwInp','kw','kwTags')
-tagSetup('exInp','ex','exTags')
-tagSetup('inInp','in_','inTags')
-tagSetup('ciInp','ci','ciTags')
-
-tagRender('kw','kwTags')
-tagRender('ex','exTags')
-tagRender('in_','inTags')
-tagRender('ci','ciTags')
-
-var srcKeys=['linkedin','indeed','wuzzuf','search_engine','company_pages']
-var srcLabels={linkedin:'LinkedIn',indeed:'Indeed',wuzzuf:'Wuzzuf',search_engine:'Search Engine',company_pages:'Company Pages'}
-var srcSt=JSON.parse(localStorage.getItem('srcSt')||'{}')
+/* ── Sources ─────────────────────────────────────────────── */
+var srcKeys = ['linkedin','indeed','wuzzuf','search_engine','company_pages']
+var srcLabels = {linkedin:'LinkedIn',indeed:'Indeed',wuzzuf:'Wuzzuf',search_engine:'Search Engine',company_pages:'Company Pages'}
+var srcSt = {}
 
 function svSrc(){localStorage.setItem('srcSt',JSON.stringify(srcSt))}
-
 function renderSrcs(){
-var el=document.getElementById('srcs')
-el.innerHTML=srcKeys.map(function(k){
-var on=srcSt[k]!==false
-return '<div class="src'+(on?' on':'')+'" data-k="'+k+'" onclick="tgSrc(this,\''+k+'\')"><span class="ck"></span>'+srcLabels[k]+'</div>'
-}).join('')
+  var el = document.getElementById('srcs')
+  el.innerHTML = srcKeys.map(function(k){
+    var on = srcSt[k] !== false
+    return '<div class="src'+(on?' on':'')+'" data-k="'+k+'" onclick="tgSrc(this,\''+k+'\')">'+srcLabels[k]+'</div>'
+  }).join('')
 }
 function tgSrc(el,k){
-var on=el.classList.toggle('on')
-srcSt[k]=on
-svSrc()
+  var on = el.classList.toggle('on')
+  srcSt[k] = on
+  svSrc()
 }
-renderSrcs()
 
-function sv(keys){
-keys.forEach(function(k){
-var el=document.getElementById(k)
-if(el){localStorage.setItem(k,el.value)}
+/* ── Options fields ──────────────────────────────────────── */
+document.getElementById('locInp').addEventListener('change', svOpts)
+document.getElementById('daysSel').addEventListener('change', svOpts)
+function svOpts(){
+  localStorage.setItem('locInp', document.getElementById('locInp').value)
+  localStorage.setItem('daysSel', document.getElementById('daysSel').value)
+}
+
+/* ── Multi-select instances ──────────────────────────────── */
+var kwMs, exMs, inMs, ciMs
+
+/* ── Boot ────────────────────────────────────────────────── */
+fetch('/api/options').then(r => r.json()).then(opts => {
+  kwMs = new MultiSelect(document.getElementById('kwSec'), opts.keywords, 'Select keywords…')
+  exMs = new MultiSelect(document.getElementById('exSec'), opts.titles,   'Select titles to exclude…')
+  inMs = new MultiSelect(document.getElementById('inSec'), opts.titles,   'Select titles to include…')
+  ciMs = new MultiSelect(document.getElementById('ciSec'), opts.cities,   'Select cities…')
+
+  exMs.onChange = sel => inMs.setBlocked(sel)
+  inMs.onChange = sel => exMs.setBlocked(sel)
+
+  fetch('/api/config').then(r => r.json()).then(cfg => {
+    kwMs.setSelected(cfg.keywords)
+    exMs.setSelected(cfg.exclude_titles)
+    inMs.setBlocked(cfg.exclude_titles)
+    inMs.setSelected(cfg.include_titles)
+    exMs.setBlocked(cfg.include_titles)
+    ciMs.setSelected(cfg.target_cities)
+
+    srcSt = {}
+    for (var k in cfg.sources) { srcSt[k] = cfg.sources[k] }
+    svSrc()
+    renderSrcs()
+
+    document.getElementById('locInp').value = cfg.location || 'Egypt'
+    document.getElementById('daysSel').value = String(cfg.days_posted || 7)
+  }).catch(() => addLog('Could not restore saved config.', 'err'))
+}).catch(() => {
+  kwMs = new MultiSelect(document.getElementById('kwSec'), [], 'Select keywords…')
+  exMs = new MultiSelect(document.getElementById('exSec'), [], 'Select titles to exclude…')
+  inMs = new MultiSelect(document.getElementById('inSec'), [], 'Select titles to include…')
+  ciMs = new MultiSelect(document.getElementById('ciSec'), [], 'Select cities…')
+  exMs.onChange = sel => inMs.setBlocked(sel)
+  inMs.onChange = sel => exMs.setBlocked(sel)
+  renderSrcs()
+  addLog('Could not load option lists from server. Check that data/ JSON files exist.', 'err')
 })
-}
-document.getElementById('locInp').addEventListener('change',function(){sv(['locInp','daysSel','expSel'])})
-document.getElementById('daysSel').addEventListener('change',function(){sv(['locInp','daysSel','expSel'])})
-document.getElementById('expSel').addEventListener('change',function(){sv(['locInp','daysSel','expSel'])})
 
-var loc=localStorage.getItem('locInp')||'Egypt'
-var days=localStorage.getItem('daysSel')||'7'
-var exp=localStorage.getItem('expSel')||''
-document.getElementById('locInp').value=loc
-document.getElementById('daysSel').value=days
-document.getElementById('expSel').value=exp
+;(function(){
+  var stored = JSON.parse(localStorage.getItem('srcSt') || '{}')
+  srcKeys.forEach(k => { srcSt[k] = stored[k] !== undefined ? stored[k] : true })
+  renderSrcs()
+  document.getElementById('locInp').value = localStorage.getItem('locInp') || 'Egypt'
+  document.getElementById('daysSel').value = localStorage.getItem('daysSel') || '7'
+})()
 
-function ld(){
-fetch('/api/defaults').then(function(r){return r.json()}).then(function(d){
-tagSave('kw',d.keywords);tagRender('kw','kwTags')
-tagSave('ex',d.exclude_titles);tagRender('ex','exTags')
-tagSave('in_',d.include_titles);tagRender('in_','inTags')
-tagSave('ci',d.target_cities);tagRender('ci','ciTags')
-document.getElementById('locInp').value=d.location
-document.getElementById('daysSel').value=String(d.days_posted)
-document.getElementById('expSel').value=''
-srcSt={}
-for(var k in d.sources){srcSt[k]=d.sources[k]}
-svSrc()
-renderSrcs()
-addLog('Defaults loaded from config.py','ok')
-})
-}
-
-function addLog(msg,cls){
-var el=document.getElementById('log')
-var d=document.createElement('div')
-d.className='ent'+(cls?' '+cls:'')
-d.innerHTML=msg
-el.appendChild(d)
-el.scrollTop=el.scrollHeight
+/* ── Load Defaults ───────────────────────────────────────── */
+function ld() {
+  if (!kwMs) { addLog('UI still loading, please wait…', 'err'); return }
+  fetch('/api/defaults').then(r => r.json()).then(d => {
+    kwMs.setSelected(d.keywords)
+    exMs.setSelected(d.exclude_titles)
+    inMs.setBlocked(d.exclude_titles)
+    inMs.setSelected(d.include_titles)
+    exMs.setBlocked(d.include_titles)
+    ciMs.setSelected(d.target_cities)
+    document.getElementById('locInp').value = d.location
+    document.getElementById('daysSel').value = String(d.days_posted)
+    srcSt = {}
+    for (var k in d.sources) { srcSt[k] = d.sources[k] }
+    svSrc()
+    renderSrcs()
+    addLog('Defaults loaded', 'ok')
+  }).catch(() => addLog('Could not load defaults from server.', 'err'))
 }
 
-function run(){
-var btn=document.getElementById('runBtn')
-if(btn.classList.contains('loading'))return
-
-var keys=tagStore('kw')
-if(keys.length===0){addLog('Enter at least one keyword.','err');return}
-
-btn.classList.add('loading')
-document.getElementById('log').innerHTML=''
-document.getElementById('log').classList.add('show')
-document.getElementById('rs').classList.remove('show')
-document.getElementById('rsLinks').innerHTML=''
-addLog('Starting scraper\u2026')
-
-var expVal=document.getElementById('expSel').value
-var experienceLevel=[]
-if(expVal){experienceLevel=[parseInt(expVal)]}
-
-fetch('/api/run',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-keywords:keys,
-exclude_titles:tagStore('ex'),
-include_titles:tagStore('in_'),
-target_cities:tagStore('ci'),
-sources:srcKeys.reduce(function(o,k){o[k]=srcSt[k]!==false;return o},{}),
-location:document.getElementById('locInp').value,
-days_posted:parseInt(document.getElementById('daysSel').value)
-})
-}).then(function(r){return r.json()}).then(function(data){
-var es=new EventSource('/api/stream/'+data.run_id)
-es.onmessage=function(e){
-if(e.data==='[DONE]'){es.close();btn.classList.remove('loading');return}
-var m=JSON.parse(e.data)
-var cls=''
-if(m.type==='phase_done'){cls='ok';addLog(m.source+': <b>'+m.count+'</b> results',cls)}
-else if(m.type==='phase_skip'){cls='sk';addLog(m.source+': skipped',cls)}
-else if(m.type==='phase_error'){cls='err';addLog(m.source+': ERROR \u2014 '+m.error,cls)}
-else if(m.type==='message'){addLog(m.text)}
-else if(m.type==='done'){
-addLog('Done \u2014 <b>'+m.total+'</b> results (<b>'+m.removed+'</b> removed) in <b>'+m.elapsed+'s</b>','ok')
-if(m.total>0){
-document.getElementById('rsInfo').innerHTML='<b>'+m.total+'</b> internships &middot; '+m.elapsed+'s'
-var jsonName=m.json_path.split('/').pop()
-var htmlName=m.html_path.split('/').pop()
-document.getElementById('rsLinks').innerHTML='<a href="/output/'+jsonName+'">JSON \u2197</a><a href="/output/'+htmlName+'">HTML Report \u2197</a>'
-document.getElementById('rs').classList.add('show')
+/* ── Logging ─────────────────────────────────────────────── */
+function addLog(msg, cls) {
+  var el = document.getElementById('log')
+  el.classList.add('show')
+  var d = document.createElement('div')
+  d.className = 'ent' + (cls ? ' ' + cls : '')
+  d.innerHTML = msg
+  el.appendChild(d)
+  el.scrollTop = el.scrollHeight
 }
-}
-else if(m.type==='error'){cls='err';addLog('Error: '+m.text,cls)}
-else{addLog(JSON.stringify(m))}
-}
-es.onerror=function(){
-es.close()
-btn.classList.remove('loading')
-addLog('Connection lost.','err')
-}
-})
+
+/* ── Run ─────────────────────────────────────────────────── */
+function run() {
+  var btn = document.getElementById('runBtn')
+  if (btn.classList.contains('loading')) return
+
+  var keys = kwMs ? kwMs.getSelected() : []
+  if (keys.length === 0) { addLog('Select at least one keyword.', 'err'); return }
+
+  btn.classList.add('loading')
+  document.getElementById('log').innerHTML = ''
+  document.getElementById('log').classList.add('show')
+  document.getElementById('rs').classList.remove('show')
+  document.getElementById('rsLinks').innerHTML = ''
+  addLog('Starting scraper…')
+
+  fetch('/api/run', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      keywords:       kwMs.getSelected(),
+      exclude_titles: exMs.getSelected(),
+      include_titles: inMs.getSelected(),
+      target_cities:  ciMs.getSelected(),
+      sources: srcKeys.reduce((o, k) => { o[k] = srcSt[k] !== false; return o }, {}),
+      location: document.getElementById('locInp').value,
+      days_posted: parseInt(document.getElementById('daysSel').value)
+    })
+  }).then(r => r.json()).then(data => {
+    var es = new EventSource('/api/stream/' + data.run_id)
+    es.onmessage = function(e) {
+      if (e.data === '[DONE]') { es.close(); btn.classList.remove('loading'); return }
+      var m = JSON.parse(e.data)
+      if      (m.type === 'phase_done')  { addLog(esc(m.source) + ': <b>' + parseInt(m.count) + '</b> results', 'ok') }
+      else if (m.type === 'phase_skip')  { addLog(esc(m.source) + ': skipped', 'sk') }
+      else if (m.type === 'phase_error') { addLog(esc(m.source) + ': ERROR — ' + esc(m.error), 'err') }
+      else if (m.type === 'message')     { addLog(esc(m.text)) }
+      else if (m.type === 'done') {
+        addLog('Done — <b>' + parseInt(m.total) + '</b> results (<b>' + parseInt(m.removed) + '</b> removed) in <b>' + esc(String(m.elapsed)) + 's</b>', 'ok')
+        if (m.total > 0) {
+          document.getElementById('rsInfo').innerHTML = '<b>' + parseInt(m.total) + '</b> internships &middot; ' + esc(String(m.elapsed)) + 's'
+          var jsonName = esc(m.json_path.split('/').pop())
+          var htmlName = esc(m.html_path.split('/').pop())
+          document.getElementById('rsLinks').innerHTML =
+            '<a class="btn-outline" href="/output/' + jsonName + '">JSON &#8599;</a>' +
+            '<a class="btn-primary" href="/output/' + htmlName + '">HTML Report &#8599;</a>'
+          document.getElementById('rs').classList.add('show')
+        }
+      }
+      else if (m.type === 'error') { addLog('Error: ' + esc(m.text), 'err') }
+      else { addLog(esc(JSON.stringify(m))) }
+    }
+    es.onerror = function() {
+      es.close()
+      btn.classList.remove('loading')
+      addLog('Connection lost.', 'err')
+    }
+  }).catch(err => {
+    btn.classList.remove('loading')
+    addLog('Could not reach the server: ' + esc(err.message), 'err')
+  })
 }
 </script>
 </body>

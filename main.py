@@ -1,146 +1,119 @@
 import asyncio
 import sys
 import time
-
 from pathlib import Path
+from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import SCRAPER_CONFIG, OUTPUT_DIR
-import filters as f
-from filters import filter_jobs
-from output import save_json, save_html
+from utils.config import (
+    OUTPUT_DIR, Internship, RunConfig, build_run_config,
+    ProgressEvent, PHASE_TIMEOUTS,
+)
+from utils.filters import filter_jobs
+from utils.output import save_json, save_html
+from utils.logger import info, error
 
 
-def _progress(queue, kind, **kw):
-    if kind is None:
+def _emit(queue: Optional[asyncio.Queue], kind: Optional[str], **payload: Any) -> None:
+    """Push a progress event onto the SSE queue, if there is one."""
+    if kind is None or queue is None:
         return
-    if queue is not None:
-        queue.put_nowait({"type": kind, **kw})
+    queue.put_nowait({"type": kind, **payload})
 
 
-async def run_pipeline(user_config: dict = None, progress_queue: asyncio.Queue = None):
-    if user_config:
-        for key, value in user_config.items():
-            if key in SCRAPER_CONFIG and isinstance(value, dict):
-                SCRAPER_CONFIG[key].update(value)
-            else:
-                SCRAPER_CONFIG[key] = value
-        if "exclude_titles" in user_config:
-            f.EXCLUDE_TITLES = user_config["exclude_titles"]
-        if "include_titles" in user_config:
-            f.INCLUDE_TITLES = user_config["include_titles"]
-        if "target_cities" in user_config:
-            f.TARGET_CITIES = user_config["target_cities"]
-
+async def run_pipeline(user_config: Optional[dict[str, Any]] = None,
+                       progress_queue: Optional[asyncio.Queue] = None) -> list[Internship]:
+    config = build_run_config(user_config)
     start = time.time()
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    async def _run(name, scraper, timeout=90):
+    async def _run(name: str, scraper, timeout: int) -> list[Internship]:
         try:
             jobs = await asyncio.wait_for(scraper.scrape(), timeout=timeout)
-            msg = f"  {name}: {len(jobs)} results"
-            print(msg, flush=True)
-            _progress(progress_queue, "phase_done", source=name, count=len(jobs))
+            info("  %s: %d results", name, len(jobs))
+            _emit(progress_queue, ProgressEvent.PHASE_DONE, source=name, count=len(jobs))
             return jobs
         except asyncio.TimeoutError:
-            msg = f"  {name}: TIMEOUT after {timeout}s"
-            print(msg, flush=True)
-            _progress(progress_queue, "phase_error", source=name, error="timeout")
+            error("  %s: TIMEOUT after %ds", name, timeout)
+            _emit(progress_queue, ProgressEvent.PHASE_ERROR, source=name, error="timeout")
             return []
         except Exception as e:
-            msg = f"  {name}: ERROR — {e}"
-            print(msg, flush=True)
-            _progress(progress_queue, "phase_error", source=name, error=str(e))
+            error("  %s: ERROR — %s", name, e)
+            _emit(progress_queue, ProgressEvent.PHASE_ERROR, source=name, error=str(e))
             return []
         finally:
             await scraper.close()
 
-    async def _phase(cfg_key, name, scraper_cls, timeout=90):
-        if not SCRAPER_CONFIG.get(cfg_key, {}).get("enabled", True):
-            msg = f"  {name}: skipped (disabled)"
-            print(msg, flush=True)
-            _progress(progress_queue, "phase_skip", source=name)
+    async def _phase(cfg_key: str, name: str, scraper_cls) -> list[Internship]:
+        if not config.scrapers.get(cfg_key, {}).get("enabled", True):
+            info("  %s: skipped (disabled)", name)
+            _emit(progress_queue, ProgressEvent.PHASE_SKIP, source=name)
             return []
-        scraper = scraper_cls()
-        return await _run(name, scraper, timeout=timeout)
+        return await _run(name, scraper_cls(config), PHASE_TIMEOUTS[cfg_key])
 
-    all_jobs = []
+    all_jobs: list[Internship] = []
 
+    # Scraper imports are deferred so an optional dependency (Playwright) that is
+    # missing only affects the scrapers that need it, not module import.
     msg = "Phase 1 — Playwright scrapers (serialized, retry-enabled)"
-    print(msg, flush=True)
-    _progress(progress_queue, "message", text=msg)
+    info(msg)
+    _emit(progress_queue, ProgressEvent.MESSAGE, text=msg)
     from scrapers.indeed import IndeedScraper
     from scrapers.wuzzuf import WuzzufScraper
 
-    jobs = await _phase("indeed", "Indeed", IndeedScraper)
-    all_jobs.extend(jobs)
-
-    jobs = await _phase("wuzzuf", "Wuzzuf", WuzzufScraper)
-    all_jobs.extend(jobs)
+    all_jobs.extend(await _phase("indeed", "Indeed", IndeedScraper))
+    all_jobs.extend(await _phase("wuzzuf", "Wuzzuf", WuzzufScraper))
 
     msg = "Phase 2 — Bing-backed scrapers (rate-limited)"
-    print("", flush=True)
-    print(msg, flush=True)
-    _progress(progress_queue, "message", text=msg)
+    info(msg)
+    _emit(progress_queue, ProgressEvent.MESSAGE, text=msg)
     from scrapers.company_pages import CompanyPagesScraper
-    from search_engine import SearchEngineScraper
+    from utils.search_engine import SearchEngineScraper
 
-    jobs = await _phase("company_pages", "Company Pages", CompanyPagesScraper, timeout=90)
-    all_jobs.extend(jobs)
-
-    jobs = await _phase("search_engine", "Search Engine", SearchEngineScraper, timeout=90)
-    all_jobs.extend(jobs)
+    all_jobs.extend(await _phase("company_pages", "Company Pages", CompanyPagesScraper))
+    all_jobs.extend(await _phase("search_engine", "Search Engine", SearchEngineScraper))
 
     msg = "Phase 3 — HTTP scrapers"
-    print("", flush=True)
-    print(msg, flush=True)
-    _progress(progress_queue, "message", text=msg)
+    info(msg)
+    _emit(progress_queue, ProgressEvent.MESSAGE, text=msg)
     from scrapers.linkedin import LinkedInScraper
 
-    jobs = await _phase("linkedin", "LinkedIn", LinkedInScraper, timeout=120)
-    all_jobs.extend(jobs)
+    all_jobs.extend(await _phase("linkedin", "LinkedIn", LinkedInScraper))
 
-    print("", flush=True)
     msg = f"Total raw results: {len(all_jobs)}"
-    print(msg, flush=True)
-    _progress(progress_queue, "message", text=msg)
+    info(msg)
+    _emit(progress_queue, ProgressEvent.MESSAGE, text=msg)
 
-    before_dedup = len(all_jobs)
-    filtered = filter_jobs(all_jobs)
-    after_dedup = len(filtered)
-    dedup_removed = before_dedup - after_dedup
-
-    print(f"After dedup/filter: {len(filtered)}", flush=True)
-    print(f"  Dedup/filter removed {dedup_removed} entries", flush=True)
+    before = len(all_jobs)
+    filtered = filter_jobs(all_jobs, config)
+    removed = before - len(filtered)
+    info("After dedup/filter: %d  (removed %d)", len(filtered), removed)
 
     elapsed = time.time() - start
 
     if filtered:
         json_path = save_json(filtered, "internships")
         html_path = save_html(filtered, "internships")
-        print(f"Exported to {OUTPUT_DIR / 'internships.json'}", flush=True)
-        print(f"Exported to {OUTPUT_DIR / 'internships.html'}", flush=True)
-        _progress(progress_queue, "done",
-                  total=len(filtered), removed=dedup_removed,
-                  json_path=json_path, html_path=html_path,
-                  elapsed=round(elapsed, 1))
+        info("Exported to %s", OUTPUT_DIR / "internships.json")
+        info("Exported to %s", OUTPUT_DIR / "internships.html")
+        _emit(progress_queue, ProgressEvent.DONE,
+              total=len(filtered), removed=removed,
+              json_path=json_path, html_path=html_path, elapsed=round(elapsed, 1))
     else:
-        print("No results found.", flush=True)
-        _progress(progress_queue, "done",
-                  total=0, removed=dedup_removed,
-                  json_path=None, html_path=None,
-                  elapsed=round(elapsed, 1))
+        info("No results found.")
+        _emit(progress_queue, ProgressEvent.DONE,
+              total=0, removed=removed,
+              json_path=None, html_path=None, elapsed=round(elapsed, 1))
 
-    print("", flush=True)
-    print(f"Total time: {elapsed:.1f}s", flush=True)
-    _progress(progress_queue, None)
+    info("Total time: %.1fs", elapsed)
+    _emit(progress_queue, None)
     return filtered
 
 
-async def main():
-    print("Egypt Internships Scraper")
-    print("=" * 40)
+async def main() -> None:
+    info("Egypt Internships Scraper")
+    info("=" * 40)
     await run_pipeline()
 
 

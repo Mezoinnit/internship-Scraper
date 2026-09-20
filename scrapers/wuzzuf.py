@@ -1,10 +1,10 @@
 import asyncio
 import random
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote_plus
 
 from bs4 import BeautifulSoup
 
-from config import SCRAPER_CONFIG, Internship
+from utils.config import Internship
 from .base import BaseScraper, _pw_lock
 
 try:
@@ -19,14 +19,23 @@ class WuzzufScraper(BaseScraper):
     BASE_URL = "https://wuzzuf.net/search/jobs/"
 
     async def scrape(self) -> list[Internship]:
-        cfg = SCRAPER_CONFIG["wuzzuf"]
-        kw = cfg["keywords"][0]
+        cfg = self.config.scrapers["wuzzuf"]
         loc = cfg["location"]
-        url = f"{self.BASE_URL}?q={kw}&location={loc}"
-        if PLAYWRIGHT_AVAILABLE:
-            return await self._scrape_pw(url)
-        html = await self.safe_fetch(url)
-        return self._parse(html) if html else []
+        all_jobs: list[Internship] = []
+        seen_urls: set[str] = set()
+        for kw in cfg["keywords"]:
+            query = f"{kw} intern"
+            url = f"{self.BASE_URL}?q={quote_plus(query)}&location={quote_plus(loc)}"
+            if PLAYWRIGHT_AVAILABLE:
+                jobs = await self._scrape_pw(url)
+            else:
+                html = await self.safe_fetch(url)
+                jobs = self._parse(html) if html else []
+            for job in jobs:
+                if job.url not in seen_urls:
+                    seen_urls.add(job.url)
+                    all_jobs.append(job)
+        return all_jobs
 
     async def _scrape_pw(self, url: str) -> list[Internship]:
         async with _pw_lock:
@@ -75,9 +84,13 @@ class WuzzufScraper(BaseScraper):
                     le = detail.select_one("span.css-16x61xq")
                     if le:
                         location = le.get_text(strip=True)
+                date_posted = ""
+                date_el = card.select_one("div.css-4c4ojb, time, [class*='date']")
+                if date_el:
+                    date_posted = date_el.get_text(strip=True)
                 jobs.append(Internship(
                     title=title, company=company, location=location,
-                    url=href, source=self.SOURCE,
+                    url=href, source=self.SOURCE, date_posted=date_posted,
                 ))
             except Exception:
                 continue
